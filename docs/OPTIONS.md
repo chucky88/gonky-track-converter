@@ -65,6 +65,7 @@ For `--cc0-families` the values are `grass`, `gravel`, `concrete`, `asphalt`, `w
 | `--author-lights` | `--luces-autor` | ✅ the lights the author declared for Custom Shaders Patch (`LIGHT_SERIES`) |
 | `--track-floodlights` | `--focos-daytona` | ✅ track floodlights with the official tracks' recipe (both sides, tilted, cold colour + short ones above) |
 | `--real-ground-plane` | `--plano-real` | ✅ **essential at night**: each light's ground plane at its real height (without it a high floodlight doesn't reach the asphalt) |
+| `--light-boost <value>` | `--potencia-luz` | multiplies the intensity of the spotlights over the track and the pits (default 1; e.g. `2.5`) |
 | `--stand-floodlights` | `--focos-gradas` | ✅ floodlights for the grandstands and the crowd |
 | `--dark-spot-lights` | `--focos-oscuros` | extra floodlights on dark stretches (replaced by `--track-floodlights`) |
 | `--night-glow <value>` | `--brillos-nocturnos` | ✅ what glows at night (windows, panels…): `all` |

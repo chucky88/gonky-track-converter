@@ -476,15 +476,17 @@ def focos_daytona(aiw_path: str, col) -> list:
 
 def escribir_series(salida: str, nombre: str, carpeta: str, trazado: str, focos_gradas: bool = False,
                     aiw_tramos_oscuros: str | None = None, aiw_daytona: str | None = None,
-                    plano_real: bool = False) -> dict:
+                    plano_real: bool = False, potencia: float = 1.0) -> dict:
     """The `_lights.sgx` from the AC author's series. Without series, nothing is touched.
-    `aiw_daytona`: track spotlights with Daytona's recipe (`--track-floodlights`)."""
+    `aiw_daytona`: track spotlights with Daytona's recipe (`--track-floodlights`).
+    `potencia` (`--light-boost`): multiplies the intensity of the lights over DRIVABLE ground (track
+    and pit spotlights); stands, buildings and glows are left as they are."""
     return _escribir_series(salida, nombre, carpeta, trazado, focos_gradas, aiw_tramos_oscuros, aiw_daytona,
-                            plano_real)
+                            plano_real, potencia)
 
 
 def _escribir_series(salida, nombre, carpeta, trazado, focos_gradas, aiw_tramos_oscuros, aiw_daytona,
-                     plano_real=False) -> dict:
+                     plano_real=False, potencia=1.0) -> dict:
     luces = series_ac(carpeta, trazado)
     if luces and focos_gradas:
         luces = luces + focos_de_grada(carpeta, trazado)
@@ -529,7 +531,7 @@ def _escribir_series(salida, nombre, carpeta, trazado, focos_gradas, aiw_tramos_
             alturas.append(y - suelo[1])
         dx, dy, dz = l["dir"]
         i_, r = ((l["intensidad"], l["rango"]) if l.get("intensidad") else
-                 (INTENSIDAD_FOCO, ALCANCE_FOCO) if sobre else (LUZ_POR_M2 * l["rango"] ** 2, l["rango"]))
+                 (INTENSIDAD_FOCO * potencia, ALCANCE_FOCO) if sobre else (LUZ_POR_M2 * l["rango"] ** 2, l["rango"]))
         n = len(partes) + 1
         bloque = PLANTILLA.format(no=n, nombre=l["nombre"], x=x, y=y, z=z, intensidad=i_, rango=r)
         bloque = bloque.replace('Direction="0.000000 -1.000000 0.000000"',
@@ -540,7 +542,9 @@ def _escribir_series(salida, nombre, carpeta, trazado, focos_gradas, aiw_tramos_
                                     f'InnerAngle="-1.0" OuterAngle="{l["spot"]:.1f}"')
         partes.append(_plano(bloque, col, x, y, z, suelos_ref) if plano_real else bloque)
         escritas.append(l["nombre"])
-        emitidas.append((x, y, z, i_, r))
+        # the crowd yardstick below measures the light WITHOUT `--light-boost`: otherwise boosting the
+        # pit lights would take crowd spotlights away, and the boost would change two things at once
+        emitidas.append((x, y, z, i_ / potencia if sobre and not l.get("intensidad") else i_, r))
         cajas.append((x - r, y - r, z - r, x + r, y + r, z + r))
     extra = []
     if trazada:
@@ -554,7 +558,7 @@ def _escribir_series(salida, nombre, carpeta, trazado, focos_gradas, aiw_tramos_
         for l in extra:
             x, y, z = l["pos"]
             dx, dy, dz = l["dir"]
-            i_, r = l["intensidad"], l["rango"]
+            i_, r = l["intensidad"] * potencia, l["rango"]      # these all light the track
             bloque = PLANTILLA.format(no=len(partes) + 1, nombre=l["nombre"], x=x, y=y, z=z, intensidad=i_, rango=r)
             bloque = bloque.replace('Direction="0.000000 -1.000000 0.000000"', f'Direction="{dx:.6f} {dy:.6f} {dz:.6f}"')
             if l.get("color"):

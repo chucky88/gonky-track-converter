@@ -50,6 +50,7 @@ OPCIONES = [
     ("--luces-autor", "--author-lights", False, "Night and lights", "✅ the lights the author declared for Custom Shaders Patch (`LIGHT_SERIES`)"),
     ("--focos-daytona", "--track-floodlights", False, "Night and lights", "✅ track floodlights with the official tracks' recipe (both sides, tilted, cold colour + short ones above)"),
     ("--plano-real", "--real-ground-plane", False, "Night and lights", "✅ **essential at night**: each light's ground plane at its real height (without it a high floodlight doesn't reach the asphalt)"),
+    ("--potencia-luz", "--light-boost", True, "Night and lights", "multiplies the intensity of the spotlights over the track and the pits (default 1; e.g. `2.5`)"),
     ("--focos-gradas", "--stand-floodlights", False, "Night and lights", "✅ floodlights for the grandstands and the crowd"),
     ("--focos-oscuros", "--dark-spot-lights", False, "Night and lights", "extra floodlights on dark stretches (replaced by `--track-floodlights`)"),
     ("--brillos-nocturnos", "--night-glow", True, "Night and lights", "✅ what glows at night (windows, panels…): `all`"),

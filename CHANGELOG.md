@@ -3,6 +3,12 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions: [SemVer](https://semver.org/).
 The version lives in `converter/version.py` and is written into each mod's `CREDITS.txt`.
 
+## [Unreleased]
+
+### Added
+- `--light-boost <factor>`: multiplies the intensity of the spotlights over the track and the pits
+  (stands, buildings and glows are left as they are). Default 1.
+
 ## [0.3.1] — 2026-09-27
 
 ### Changed

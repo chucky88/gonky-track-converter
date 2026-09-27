@@ -840,7 +840,8 @@ def main(argv):
                                  focos_gradas="--focos-gradas" in argv,
                                  aiw_tramos_oscuros=ctx["aiw_out"] if "--focos-oscuros" in argv else None,
                                  aiw_daytona=ctx["aiw_out"] if "--focos-daytona" in argv else None,
-                                 plano_real="--plano-real" in argv)
+                                 plano_real="--plano-real" in argv,
+                                 potencia=float(arg("--potencia-luz", "1")))
         print(f"   author's lights: {rz.get('luces')} · {rz.get('series') or rz.get('motivo')}"
               f" · height above the ground min/median/max {rz.get('alturas')}"
               + (f" · Daytona recipe {rz['daytona']}" if rz.get("daytona") else ""))

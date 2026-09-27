@@ -107,9 +107,40 @@ def es_del_circuito(fichero, nombre):
     return os.path.splitext(fichero)[0].lower().split(".")[0] == nombre.lower()
 
 
-def empaquetar(pack_dir, nombre):
+# 🧪 `--bmt-only`: materials ONLY as `.bmt` inside the main pak, like fully packed reference tracks.
+# TrackPacker converts every `.mtx` to `.bmt` and packs BOTH; the seasonal paks are built afterwards
+# FROM those `.mtx`. So OMTT is left untouched and wrapped: while the main pak is being built, each
+# `.mtx` that already has its `.bmt` is set aside, and put back before the seasonal paks.
+_SOLO_BMT = r"""
+import pathlib, sys
+sys.argv = sys.argv[:1] + sys.argv[2:]
+import pack_track as P
+_build = P.build_bff
+def build_bff(input_dir, output_bff, name, no_compress):
+    # set aside OUTSIDE the folder being packed: the pak takes EVERY file in it, whatever its name
+    aparte, raiz = [], pathlib.Path(input_dir)
+    fuera = raiz.parent / (raiz.name + "_mtx_aparte")
+    if not name.lower().endswith("_physics"):
+        for m in sorted(raiz.rglob("*.mtx")):
+            if m.with_suffix(".bmt").exists():
+                t = fuera / m.relative_to(raiz)
+                t.parent.mkdir(parents=True, exist_ok=True)
+                m.rename(t)
+                aparte.append((t, m))
+    try:
+        _build(input_dir, output_bff, name, no_compress)
+    finally:
+        for t, m in aparte:
+            t.rename(m)
+P.build_bff = build_bff
+raise SystemExit(P.main(sys.argv[1:]))
+"""
+
+
+def empaquetar(pack_dir, nombre, solo_bmt=False):
+    orden = ([sys.executable, "-c", _SOLO_BMT, PACKER] if solo_bmt else [sys.executable, PACKER])
     r = subprocess.run(
-        [sys.executable, PACKER, pack_dir, "--track-name", nombre, "--quiet"],
+        orden + [pack_dir, "--track-name", nombre, "--quiet"],
         capture_output=True, text=True, cwd=os.path.dirname(PACKER), timeout=3600,
     )
     zip_path = os.path.join(os.path.dirname(pack_dir.rstrip("/")), f"{nombre.lower()}.zip")
@@ -192,18 +223,23 @@ def _rel(n):
     return n[len("Automobilista 2/"):].lower() if n.startswith("Automobilista 2/") else None
 
 
-def limpiar_sueltos(zip_path, nombre):
+def limpiar_sueltos(zip_path, nombre, solo_bmt=False):
     """Drops every loose file under `Tracks/` that is ALREADY inside a pak with the same content,
     except the `.mtx`/`.trd` and what TrackPacker leaves out. Returns (removed, loose not in any pak):
-    a loose copy is only dropped once the pak is proven to hold it, never on the name alone."""
+    a loose copy is only dropped once the pak is proven to hold it, never on the name alone.
+    With `solo_bmt`, a loose `.mtx` goes too once the pak holds its `.bmt`."""
     import hashlib
     guardar = {f"Automobilista 2/{r}" for r in no_empaquetados(nombre)}
     z = zipfile.ZipFile(zip_path)
     dentro = _en_los_paks(z)
     fuera, huerfanos = [], []
     for n in z.namelist():
-        if (not n.startswith("Automobilista 2/Tracks/") or n.endswith("/") or n in guardar
-                or n.lower().endswith(SUELTOS_PERMITIDOS)):
+        if not n.startswith("Automobilista 2/Tracks/") or n.endswith("/") or n in guardar:
+            continue
+        if solo_bmt and n.lower().endswith(".mtx") and _rel(n)[:-4] + ".bmt" in dentro:
+            fuera.append(n)
+            continue
+        if n.lower().endswith(SUELTOS_PERMITIDOS):
             continue
         if dentro.get(_rel(n)) == hashlib.md5(z.read(n)).hexdigest():
             fuera.append(n)
@@ -223,7 +259,7 @@ def limpiar_sueltos(zip_path, nombre):
     return fuera, huerfanos
 
 
-def comprobar(zip_path, nombre):
+def comprobar(zip_path, nombre, solo_bmt=False):
     """The zip must look like a working reference: paks with the physics INSIDE, few loose files
     and NOTHING global."""
     z = zipfile.ZipFile(zip_path)
@@ -234,6 +270,10 @@ def comprobar(zip_path, nombre):
     malos = [n for n in sueltos if n not in guardar and not n.lower().endswith(SUELTOS_PERMITIDOS)]
     dentro = _en_los_paks(z)
     falta_fisica = [r for r in fisica(nombre) if r.lower() not in dentro]
+    if solo_bmt:
+        mtx = [n for n in sueltos if n.lower().endswith(".mtx")] + [k for k in dentro if ".mtx" in k]
+        if mtx:
+            return False, f"🔴 --bmt-only, but {len(mtx)} .mtx remain (loose or in the pak): {mtx[0]}"
     globales = [
         n for n in nombres
         if any(f"/{c}/" in n for c in CARPETAS_GLOBALES)
@@ -250,7 +290,8 @@ def comprobar(zip_path, nombre):
     if globales:
         return False, (f"🔴 the package overwrites {len(globales)} GAME files: "
                        f"{', '.join(globales[:4])}")
-    return True, (f"✅ {len(paks)} paks with the physics inside · {len(sueltos)} loose "
+    return True, (f"✅ {len(paks)} paks with the physics inside{' · materials only as .bmt' if solo_bmt else ''}"
+                  f" · {len(sueltos)} loose "
                   f"(.mtx/.trd + {len([n for n in sueltos if n in guardar])} not packed by TrackPacker) "
                   f"· 0 global engine files")
 
@@ -261,12 +302,13 @@ def main(argv):
         return 2
     pack_dir = argv[1].rstrip("/")
     nombre = argv[argv.index("--nombre") + 1] if "--nombre" in argv else "charlotte"
+    solo_bmt = "--solo-bmt" in argv
 
     apartados = apartar_globales(pack_dir, nombre)
     print(f"GAME files set aside from the pack: {len(apartados)}"
           + (f"\n   " + "\n   ".join(apartados) if apartados else " — it was already clean"))
 
-    zip_path, err = empaquetar(pack_dir, nombre)
+    zip_path, err = empaquetar(pack_dir, nombre, solo_bmt)
     if not zip_path:
         print(f"🔴 TrackPacker failed:\n{err}")
         return 1
@@ -275,12 +317,12 @@ def main(argv):
     puestos = añadir_no_empaquetados(zip_path, pack_dir, nombre)
     print(f"loose, because TrackPacker leaves them out of the pak: {len(puestos)}")
 
-    sobran, huerfanos = limpiar_sueltos(zip_path, nombre)
+    sobran, huerfanos = limpiar_sueltos(zip_path, nombre, solo_bmt)
     print(f"loose copies removed (they are inside the pak, same content): {len(sobran)}"
           + (f" — {', '.join(sorted({os.path.splitext(x)[1] for x in sobran}))}" if sobran else "")
           + (f" · ⚠️ {len(huerfanos)} loose files are NOT in any pak and stay" if huerfanos else ""))
 
-    ok, detalle = comprobar(zip_path, nombre)
+    ok, detalle = comprobar(zip_path, nombre, solo_bmt)
     print(detalle)
     return 0 if ok else 1
 

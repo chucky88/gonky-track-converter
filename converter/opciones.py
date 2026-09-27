@@ -59,6 +59,7 @@ OPCIONES = [
     # other
     ("--camaras-tv", "--tv-cameras", False, "Other", "✅ TV cameras from the mod's"),
     ("--sonido-propio", "--ambient-sound", False, "Other", "✅ ambient sound placed along the track's grandstands"),
+    ("--solo-bmt", "--bmt-only", False, "Other", "🧪 materials only as `.bmt` inside the pak, no `.mtx` loose or packed (like fully packed reference tracks). Not tested in game yet"),
     ("--sin-creditos", "--no-credits", False, "Other", "don't write `CREDITS.txt` into the zip"),
 ]
 _POR_ALIAS = {en: es for es, en, *_ in OPCIONES}

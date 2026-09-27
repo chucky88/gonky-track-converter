@@ -98,5 +98,25 @@ class TestSueltos(unittest.TestCase):
         self.assertTrue(ok, detalle)
 
 
+    def test_solo_bmt_quita_el_mtx_suelto_si_el_pak_trae_su_bmt(self):
+        pak = {"tracks\\t\\a.bmt": b"BMT"}
+        with tempfile.TemporaryDirectory() as d:
+            z = self._zip(d, pak, {"Tracks/t/a.mtx": b"MTX", "Tracks/t/b.mtx": b"MTX", "Tracks/t/t.trd": b"T"})
+            fuera, _ = E.limpiar_sueltos(z, "t", solo_bmt=True)
+            quedan = set(zipfile.ZipFile(z).namelist())
+        self.assertEqual([x.split("/")[-1] for x in fuera], ["a.mtx"])
+        self.assertIn("Automobilista 2/Tracks/t/b.mtx", quedan)       # no .bmt for it: it stays
+
+    def test_solo_bmt_la_puerta_rechaza_cualquier_mtx(self):
+        pak = {r.replace("/", "\\").lower(): b"x" for r in E.fisica("t")}
+        for extra in ({"tracks\\t\\a.mtx": b"M"}, {"tracks\\t\\a.mtx.aparte": b"M"}):
+            with tempfile.TemporaryDirectory() as d:
+                z = self._zip(d, {**pak, **extra}, {"Tracks/t/t.trd": b"T"})
+                self.assertFalse(E.comprobar(z, "t", solo_bmt=True)[0], extra)
+        with tempfile.TemporaryDirectory() as d:
+            z = self._zip(d, {**pak, "tracks\\t\\a.bmt": b"B"}, {"Tracks/t/t.trd": b"T"})
+            self.assertTrue(E.comprobar(z, "t", solo_bmt=True)[0])
+
+
 if __name__ == "__main__":
     unittest.main()

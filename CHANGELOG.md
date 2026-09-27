@@ -8,6 +8,8 @@ The version lives in `converter/version.py` and is written into each mod's `CRED
 ### Added
 - `--light-boost <factor>`: multiplies the intensity of the spotlights over the track and the pits
   (stands, buildings and glows are left as they are). Default 1.
+- 🧪 `--bmt-only`: materials only as `.bmt` inside the main pak, with no `.mtx` loose or packed, like
+  fully packed reference tracks. TrackPacker is wrapped, not modified. Not tested in game yet.
 
 ## [0.3.1] — 2026-09-27
 

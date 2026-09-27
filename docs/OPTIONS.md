@@ -78,6 +78,7 @@ For `--cc0-families` the values are `grass`, `gravel`, `concrete`, `asphalt`, `w
 |---|---|---|
 | `--tv-cameras` | `--camaras-tv` | ✅ TV cameras from the mod's |
 | `--ambient-sound` | `--sonido-propio` | ✅ ambient sound placed along the track's grandstands |
+| `--bmt-only` | `--solo-bmt` | 🧪 materials only as `.bmt` inside the pak, no `.mtx` loose or packed (like fully packed reference tracks). Not tested in game yet |
 | `--no-credits` | `--sin-creditos` | don't write `CREDITS.txt` into the zip |
 
 

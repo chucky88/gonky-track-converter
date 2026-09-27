@@ -956,7 +956,8 @@ def main(argv):
         _informe(False)
         return 1
 
-    rc, salida = C.corre([sys.executable, "empaquetar.py", ctx["pack"], "--nombre", nombre])
+    rc, salida = C.corre([sys.executable, "empaquetar.py", ctx["pack"], "--nombre", nombre]
+                         + (["--solo-bmt"] if "--solo-bmt" in argv else []))
     print("\n" + salida.strip().splitlines()[-1] if salida.strip() else "")
     # CREDITS.txt at the zip root: original author + "converted using Gonky Track Converter" (see creditos.py)
     zip_mod = os.path.join(TRABAJO, nombre, f"{nombre}.zip")

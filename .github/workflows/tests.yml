@@ -19,6 +19,6 @@ jobs:
       - run: python -m unittest discover -v -s tests -t tests
       - name: modules import without Blender
         working-directory: converter
-        run: python -c "import rutas, creditos, version, cadena, comprobar_entorno, descargar_texturas, abrir_bff, convertir_ac, unir_trazados, capas_ac, brillo_asfalto, generar_luces, generar_triggers, ac_trazado, kn5_read"
+        run: python -c "import rutas, creditos, version, cadena, bff_read, empaquetar, comprobar_entorno, descargar_texturas, abrir_bff, convertir_ac, unir_trazados, capas_ac, brillo_asfalto, generar_luces, generar_triggers, ac_trazado, kn5_read"
       - name: commands start
         run: python check_setup.py || true

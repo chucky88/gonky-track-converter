@@ -3,6 +3,16 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions: [SemVer](https://semver.org/).
 The version lives in `converter/version.py` and is written into each mod's `CREDITS.txt`.
 
+## [0.3.1] — 2026-09-27
+
+### Changed
+- **Packages ship far fewer loose files** (Charlotte: 582 → 415 MB). Everything that is already inside
+  the paks with the same content — textures, physics, AI line, LiveTrack — is no longer shipped a
+  second time loose; the `.mtx`, the `.trd` and the two files TrackPacker leaves out of the pak
+  (start lights, `env.xml`) stay loose. Tested in game: the track loads, drives and draws as before.
+- A loose copy is only dropped once the pak is proven to hold it (new `converter/bff_read.py`), and
+  the packaging gate now checks that the physics is INSIDE a pak.
+
 ## [0.3.0] — 2026-09-27
 
 First public release (beta): the pipeline GonkyRacing used to convert Charlotte Motor Speedway (oval +

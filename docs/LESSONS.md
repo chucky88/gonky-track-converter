@@ -28,7 +28,12 @@ in the code that catches it. Ordered by how much it costs if it slips through.
 - **AC has the opposite handedness to AMS2: Z must be negated.** A mirrored world passes every gate that
   compares the package with itself; only comparing with the direction declared in `ui_track.json`
   catches it.
-- **The physics `.csm` also goes outside the pak**: without it the car falls, tumbling.
+- **The physics goes INSIDE the pak, not loose; the `.mtx` do go loose.** Measured one change at a
+  time: with every loose copy of what was already in the paks removed, the cars sat on the grid (the
+  physics in `_Physics.bff` works) but the track was not drawn at all; putting only the loose `.mtx`
+  back drew it again. TrackPacker writes each material into the pak as both `.mtx` and `.bmt`, and
+  packed `.mtx` don't work. (An older note here said the loose `.csm` was needed: that failure had
+  another cause.) `empaquetar.py` now drops a loose copy only after proving the pak holds it.
 - **AC surfaces are case-insensitive** (`1apron_…`): otherwise, areas without physics and the car falls
   into the void. In the main `.kn5` the grass (`3GRASS`) is collision only, and `3DPANO` is not physics.
 - **wine is case-insensitive**: the physics cooker needs a clean folder on every run.

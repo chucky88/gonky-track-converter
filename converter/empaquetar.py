@@ -118,27 +118,37 @@ def empaquetar(pack_dir, nombre):
     return zip_path, None
 
 
-# 🔴 What goes LOOSE in an OMTT package, measured in **Mid-Ohio**: only `.mtx` and the
-# `.trd`, plus the textures. The documentation says so: «MTX files are used with LOOSE
-# content and do NOT work with packed content; with BMT files it is the other way round».
-# Shipping both forms of the same material is asking the engine to choose.
+# 🔴 What goes LOOSE and what goes only INSIDE the pak. Measured in game, one change per build:
 #
-# ⚠️ Nobody puts loose `.bmt` files there: `TrackPacker` generates them IN THE source
-# FOLDER when converting MTX→BMT, so the second packing of that same folder takes them
-# along as if they were source files.
-# 🔴 The PHYSICS also goes LOOSE, in addition to inside the pak.
+#   1. everything loose that was already inside the paks (textures, physics, AIW, LiveTrack)
+#      REMOVED, `.mtx` removed too → the cars sit on the grid (the physics inside `_Physics.bff`
+#      works) but **the track is not drawn**: cars floating in black;
+#   2. the same with the loose `.mtx` put back → the track is drawn, identical to before.
 #
-# With Beezer's trick the game reads the `Tracks/` folder **from disk**, not from the pak:
-# that is why the loose `.mtx` files are the ones that count. The same happens with the
-# collision. Measured in tests: with the loose `.csm` **you could drive**; without it, the
-# car starts **spinning in the air** — which is falling with no ground.
+# So the only loose files that matter are the `.mtx`. TrackPacker writes each material TWICE into
+# the pak, `.mtx` and `.bmt`, and OMTT's docs say «MTX files are used with LOOSE content and do NOT
+# work with packed content; with BMT files it is the other way round». A working reference that
+# packs everything (a PC2-style track made with the same toolkit) carries only `.bmt` in its pak
+# and nothing loose but the `.trd` and `GUI/`.
 #
-# ⚠️ Mid-Ohio does not ship it, but that does not mean «nothing loose»: Mid-Ohio shows
-# **what NOT to ship of what belongs to the game** (the globals). Global and packed are two
-# different questions.
+# ⚠️ Nobody puts loose `.bmt` files there: `TrackPacker` generates them IN THE source FOLDER when
+# converting MTX→BMT, so the second packing of that same folder takes them along as sources.
 #
-# All these files carry the circuit's name, so they do not overwrite anybody's files.
-def rutas_fisica(nombre):
+# 🪤 An earlier build that «fell through the ground» was blamed on the missing loose physics, and
+# for weeks every package shipped it twice. It was something else: build 1 above drives fine.
+#
+# TrackPacker leaves two files OUT of the pak; those have to go loose. All these files carry the
+# circuit's name, so they do not overwrite anybody's files.
+def no_empaquetados(nombre):
+    """What TrackPacker does NOT put into the pak (reference tracks carry it inside)."""
+    return [
+        f"Tracks/_data/tracklights/{nombre}.xml",
+        f"Tracks/_data/dynamic/physics/{nombre}.env.xml",
+    ]
+
+
+def fisica(nombre):
+    """What the car needs to have ground under it, AI and timing: it must be INSIDE a pak."""
     return [
         f"Tracks/{nombre}/physics/{nombre}.csm",
         f"Tracks/{nombre}/physics/dynamic_collisions.xml",
@@ -147,74 +157,83 @@ def rutas_fisica(nombre):
         f"Tracks/{nombre}/track_cut/{nombre}.gcl",
         f"Tracks/_data/aiw/{nombre}.aiw",
         f"Tracks/_data/livetrack/{nombre}.mrdf",
-        f"Tracks/_data/dynamic/physics/{nombre}.env.xml",
-        # ⚠️ TrackPacker does NOT copy `_data/tracklights` into the pak (nor `crowds`): Enna and
-        # Daytona carry it inside; here it goes loose, like the physics, which is already read that way.
-        f"Tracks/_data/tracklights/{nombre}.xml",
     ]
 
 
-def opcional(rel):
-    """`env.xml` is OPTIONAL: GJ Kartway (Reiza) does not carry one, and the one that came from
-    the template was the sample's, asking for cones that do not exist (see `apartar_globales`).
-    If present, it goes loose."""
-    return rel.endswith(".env.xml") or "/tracklights/" in rel
-
-
-def añadir_fisica_suelta(zip_path, pack_dir, nombre):
+def añadir_no_empaquetados(zip_path, pack_dir, nombre):
+    """The files TrackPacker left out, loose. Both are optional (GJ Kartway has no `env.xml`)."""
     dentro = set(zipfile.ZipFile(zip_path).namelist())
-    añadidos, faltan = [], []
+    añadidos = []
     with zipfile.ZipFile(zip_path, "a", zipfile.ZIP_DEFLATED) as z:
-        for rel in rutas_fisica(nombre):
+        for rel in no_empaquetados(nombre):
             origen = os.path.join(pack_dir, *rel.split("/"))
             destino = f"Automobilista 2/{rel}"
-            if not os.path.exists(origen):
-                if not opcional(rel):
-                    faltan.append(rel)
-                continue
-            if destino in dentro:
-                continue
-            z.write(origen, destino)
-            añadidos.append(rel)
-    return añadidos, faltan
+            if os.path.exists(origen) and destino not in dentro:
+                z.write(origen, destino)
+                añadidos.append(rel)
+    return añadidos
 
 
-SUELTOS_PERMITIDOS = (".mtx", ".trd", ".dds", ".txt")
+SUELTOS_PERMITIDOS = (".mtx", ".trd")
+
+
+def _en_los_paks(z):
+    """{relative path in lowercase: md5} of everything inside the zip's `.bff` files."""
+    import io
+    import bff_read as B
+    dentro = {}
+    for n in z.namelist():
+        if n.lower().endswith(".bff"):
+            dentro.update(B.contenido(io.BytesIO(z.read(n))))
+    return dentro
+
+
+def _rel(n):
+    return n[len("Automobilista 2/"):].lower() if n.startswith("Automobilista 2/") else None
 
 
 def limpiar_sueltos(zip_path, nombre):
-    """Rebuilds the zip leaving loose only what the reference carries + the physics."""
-    fisica = {f"Automobilista 2/{r}" for r in rutas_fisica(nombre)}
+    """Drops every loose file under `Tracks/` that is ALREADY inside a pak with the same content,
+    except the `.mtx`/`.trd` and what TrackPacker leaves out. Returns (removed, loose not in any pak):
+    a loose copy is only dropped once the pak is proven to hold it, never on the name alone."""
+    import hashlib
+    guardar = {f"Automobilista 2/{r}" for r in no_empaquetados(nombre)}
     z = zipfile.ZipFile(zip_path)
-    fuera = [
-        n for n in z.namelist()
-        if n.startswith("Automobilista 2/Tracks/")
-        and not n.endswith("/")
-        and n not in fisica
-        and not n.lower().endswith(SUELTOS_PERMITIDOS)
-    ]
+    dentro = _en_los_paks(z)
+    fuera, huerfanos = [], []
+    for n in z.namelist():
+        if (not n.startswith("Automobilista 2/Tracks/") or n.endswith("/") or n in guardar
+                or n.lower().endswith(SUELTOS_PERMITIDOS)):
+            continue
+        if dentro.get(_rel(n)) == hashlib.md5(z.read(n)).hexdigest():
+            fuera.append(n)
+        else:
+            huerfanos.append(n)
     if not fuera:
         z.close()
-        return []
+        return [], huerfanos
     tmp = tempfile.mktemp(suffix=".zip")
+    quitar = set(fuera)
     with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as nuevo:
         for item in z.infolist():
-            if item.filename not in fuera:
+            if item.filename not in quitar:
                 nuevo.writestr(item, z.read(item.filename))
     z.close()
     shutil.move(tmp, zip_path)
-    return fuera
+    return fuera, huerfanos
 
 
 def comprobar(zip_path, nombre):
-    """The zip must look like Mid-Ohio: paks, few loose files and NOTHING global."""
-    nombres = [n for n in zipfile.ZipFile(zip_path).namelist() if not n.endswith("/")]
+    """The zip must look like a working reference: paks with the physics INSIDE, few loose files
+    and NOTHING global."""
+    z = zipfile.ZipFile(zip_path)
+    nombres = [n for n in z.namelist() if not n.endswith("/")]
     paks = [n for n in nombres if "/Pakfiles/Tracks/" in n and n.endswith(".bff")]
     sueltos = [n for n in nombres if n.startswith("Automobilista 2/Tracks/")]
-    fisica = {f"Automobilista 2/{r}" for r in rutas_fisica(nombre)}
-    malos = [n for n in sueltos
-             if n not in fisica and not n.lower().endswith(SUELTOS_PERMITIDOS)]
-    falta_fisica = sorted(r for r in fisica - set(nombres) if not opcional(r))
+    guardar = {f"Automobilista 2/{r}" for r in no_empaquetados(nombre)}
+    malos = [n for n in sueltos if n not in guardar and not n.lower().endswith(SUELTOS_PERMITIDOS)]
+    dentro = _en_los_paks(z)
+    falta_fisica = [r for r in fisica(nombre) if r.lower() not in dentro]
     globales = [
         n for n in nombres
         if any(f"/{c}/" in n for c in CARPETAS_GLOBALES)
@@ -223,15 +242,17 @@ def comprobar(zip_path, nombre):
     if not paks:
         return False, "🔴 there is no .bff at all: the track has no content"
     if malos:
-        return False, f"🔴 {len(malos)} loose files remain that should only be in the pak"
+        return False, (f"🔴 {len(malos)} loose files are not inside any pak "
+                       f"(e.g. {', '.join(x.split('/')[-1] for x in malos[:3])})")
     if falta_fisica:
-        return False, ("🔴 LOOSE physics missing: " + ", ".join(os.path.basename(x) for x in falta_fisica)
+        return False, ("🔴 physics missing from the paks: " + ", ".join(os.path.basename(x) for x in falta_fisica)
                        + " — the car will fall into the void")
     if globales:
         return False, (f"🔴 the package overwrites {len(globales)} GAME files: "
                        f"{', '.join(globales[:4])}")
-    return True, (f"✅ {len(paks)} paks · {len(sueltos)} loose (.mtx/.trd/.dds + "
-                  f"{len(fisica)} physics) · 0 global engine files")
+    return True, (f"✅ {len(paks)} paks with the physics inside · {len(sueltos)} loose "
+                  f"(.mtx/.trd + {len([n for n in sueltos if n in guardar])} not packed by TrackPacker) "
+                  f"· 0 global engine files")
 
 
 def main(argv):
@@ -249,15 +270,15 @@ def main(argv):
     if not zip_path:
         print(f"🔴 TrackPacker failed:\n{err}")
         return 1
-    print(f"empaquetado: {zip_path} ({os.path.getsize(zip_path) // 1024 // 1024} MB)")
+    print(f"packed: {zip_path} ({os.path.getsize(zip_path) // 1024 // 1024} MB)")
 
-    puestos, faltan = añadir_fisica_suelta(zip_path, pack_dir, nombre)
-    print(f"LOOSE physics added: {len(puestos)}"
-          + (f" · 🔴 THEY WERE NOT IN THE PACK: {', '.join(faltan)}" if faltan else ""))
+    puestos = añadir_no_empaquetados(zip_path, pack_dir, nombre)
+    print(f"loose, because TrackPacker leaves them out of the pak: {len(puestos)}")
 
-    sobran = limpiar_sueltos(zip_path, nombre)
-    print(f"loose files removed (they go inside the pak): {len(sobran)}"
-          + (f" — {', '.join(sorted({os.path.splitext(x)[1] for x in sobran}))}" if sobran else ""))
+    sobran, huerfanos = limpiar_sueltos(zip_path, nombre)
+    print(f"loose copies removed (they are inside the pak, same content): {len(sobran)}"
+          + (f" — {', '.join(sorted({os.path.splitext(x)[1] for x in sobran}))}" if sobran else "")
+          + (f" · ⚠️ {len(huerfanos)} loose files are NOT in any pak and stay" if huerfanos else ""))
 
     ok, detalle = comprobar(zip_path, nombre)
     print(detalle)

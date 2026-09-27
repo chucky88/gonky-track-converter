@@ -1,0 +1,24 @@
+# Tests that need NEITHER Blender NOR the game: the .kn5 reader, material families, physics, LODs
+# and the AC layout. The ones that need a specific track's data skip themselves.
+name: tests
+on:
+  push:
+    branches: [main]      # once per push (version tags don't repeat it)
+  pull_request:
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive     # OMTT: the tests use its format docs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy pillow
+      - run: python -m unittest discover -v -s tests -t tests
+      - name: modules import without Blender
+        working-directory: converter
+        run: python -c "import rutas, creditos, version, cadena, comprobar_entorno, descargar_texturas, abrir_bff, convertir_ac, unir_trazados, capas_ac, brillo_asfalto, generar_luces, generar_triggers, ac_trazado, kn5_read"
+      - name: commands start
+        run: python check_setup.py || true

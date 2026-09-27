@@ -1,0 +1,6 @@
+[submodule "omtt"]
+	path = omtt
+	url = https://github.com/ohyeah2389/Open-Madness-Track-Tools.git
+[submodule "tools/PCarsTools"]
+	path = tools/PCarsTools
+	url = https://github.com/Nenkai/PCarsTools.git

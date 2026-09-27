@@ -1,0 +1,13 @@
+# local settings (each machine's paths)
+settings.ini
+ajustes.ini
+# what each user downloads or generates inside the repo
+textures/
+work/
+tools/PCarsTools-bin/
+# Python / Blender
+__pycache__/
+*.pyc
+*.blend
+*.blend1
+*.zip

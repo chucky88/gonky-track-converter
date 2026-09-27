@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Already converted tracks (GonkyRacing catalog)
+    url: https://gonkyracing.com/en/mods/tracks
+    about: Before converting, check whether the track is already published.

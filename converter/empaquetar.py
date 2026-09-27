@@ -107,13 +107,17 @@ def es_del_circuito(fichero, nombre):
     return os.path.splitext(fichero)[0].lower().split(".")[0] == nombre.lower()
 
 
-# 🧪 `--bmt-only`: materials ONLY as `.bmt` inside the main pak, like fully packed reference tracks.
+# 🧪 `--bmt-only`: materials ONLY as `.bmt` inside the main pak, like fully packed reference tracks,
+# written by `bmt_fix.py` (OMTT's `.bmt` draw nothing on their own: the track came out invisible).
 # TrackPacker converts every `.mtx` to `.bmt` and packs BOTH; the seasonal paks are built afterwards
 # FROM those `.mtx`. So OMTT is left untouched and wrapped: while the main pak is being built, each
 # `.mtx` that already has its `.bmt` is set aside, and put back before the seasonal paks.
 _SOLO_BMT = r"""
 import pathlib, sys
-sys.argv = sys.argv[:1] + sys.argv[2:]
+sys.path.insert(0, sys.argv[2])
+sys.argv = sys.argv[:1] + sys.argv[3:]
+import mtx2bmt, bmt_fix
+mtx2bmt.convert = bmt_fix.convertir          # Reiza's layout instead of OMTT's (see bmt_fix.py)
 import pack_track as P
 _build = P.build_bff
 def build_bff(input_dir, output_bff, name, no_compress):
@@ -138,7 +142,8 @@ raise SystemExit(P.main(sys.argv[1:]))
 
 
 def empaquetar(pack_dir, nombre, solo_bmt=False):
-    orden = ([sys.executable, "-c", _SOLO_BMT, PACKER] if solo_bmt else [sys.executable, PACKER])
+    aqui = os.path.dirname(os.path.abspath(__file__))
+    orden = ([sys.executable, "-c", _SOLO_BMT, PACKER, aqui] if solo_bmt else [sys.executable, PACKER])
     r = subprocess.run(
         orden + [pack_dir, "--track-name", nombre, "--quiet"],
         capture_output=True, text=True, cwd=os.path.dirname(PACKER), timeout=3600,

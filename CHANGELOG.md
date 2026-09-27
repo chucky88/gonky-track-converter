@@ -8,8 +8,16 @@ The version lives in `converter/version.py` and is written into each mod's `CRED
 ### Added
 - `--light-boost <factor>`: multiplies the intensity of the spotlights over the track and the pits
   (stands, buildings and glows are left as they are). Default 1.
-- 🧪 `--bmt-only`: materials only as `.bmt` inside the main pak, with no `.mtx` loose or packed, like
-  fully packed reference tracks. TrackPacker is wrapped, not modified. Not tested in game yet.
+- 🧪 `--bmt-only`: materials only as `.bmt` inside the paks, with no `.mtx` loose or packed, like
+  fully packed reference tracks, written by a new `.bmt` writer (`converter/bmt_fix.py`) that follows
+  the layout of the game's own files. TrackPacker is wrapped, not modified.
+
+### Found
+- OMTT's MTX→BMT converter writes a layout the game can't use: each element points at its first
+  child's attributes (the material loses its name and shader), elements are pre-order, the path
+  index and the same-path chains differ. Packed alone, those `.bmt` draw nothing. The new writer
+  reproduces 338 of 362 of an official track's `.bmt` byte for byte and the rest with the same
+  structure and values.
 
 ## [0.3.1] — 2026-09-27
 
